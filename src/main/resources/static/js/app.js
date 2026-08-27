@@ -14,6 +14,7 @@ import {
 
 import { viewFun, viewGames, viewLabs } from './fun.js';
 import { viewMarket } from './market.js';
+import { runIntro } from './intro.js';
 
 /* ------------------------------------------------------------ routes */
 
@@ -80,6 +81,8 @@ async function render() {
     }
   };
 
+  if (!same) warpFlash();
+
   // View Transitions where supported, hand-rolled fallback elsewhere.
   // startViewTransition throws InvalidStateError if the document is hidden or one is already running.
   if (document.startViewTransition && !same) {
@@ -99,6 +102,18 @@ async function render() {
     await paint();
     setTimeout(() => view.classList.remove('entering'), 620);
   }
+}
+
+/** A short radial sweep behind the zoom, so the cut reads as intentional. */
+function warpFlash() {
+  let node = $('#warpFlash');
+  if (!node) {
+    node = el('div', { id: 'warpFlash' });
+    document.body.append(node);
+  }
+  node.classList.remove('on');
+  void node.offsetWidth;   // restart the animation
+  node.classList.add('on');
 }
 
 function markActiveNav(path) {
@@ -178,7 +193,14 @@ async function loadFooterMeta() {
   bindAuthForm(() => render());
   renderAuthSlot();
 
-  await loadMe();
+  // The intro is tied to real work: it ends when the first sweep has actually
+  // landed, not on a timer pretending to be one.
+  const firstData = Promise.allSettled([
+    loadMe(),
+    api('/api/news/pulse', { quiet: true }),
+  ]);
+  await runIntro(firstData);
+
   render();
   loadTicker();
   loadFooterMeta();

@@ -462,6 +462,138 @@ body.has-pointer #cursor-glow { opacity: 1; }
   content: '▋'; color: var(--accent); animation: blink .9s steps(1) infinite; margin-left: 2px;
 }
 
+
+/* ============================ boot sequence ============================ */
+
+#intro {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  background: radial-gradient(120% 100% at 50% 40%, #0b1024 0%, #04050b 62%, #000 100%);
+  color: var(--text);
+  overflow: hidden;
+  perspective: 900px;
+}
+#intro::before {
+  content: ''; position: absolute; inset: -40%;
+  background:
+    radial-gradient(38vw 38vw at 24% 30%, rgba(79,70,229,.30), transparent 62%),
+    radial-gradient(34vw 34vw at 76% 62%, rgba(6,182,212,.26), transparent 62%),
+    radial-gradient(30vw 30vw at 52% 88%, rgba(219,39,119,.22), transparent 62%);
+  filter: blur(60px);
+  animation: introDrift 9s var(--ease-in-out) infinite alternate;
+}
+@keyframes introDrift {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to   { transform: translate3d(3%, 3%, 0) scale(1.14); }
+}
+
+.intro-stage {
+  position: relative; z-index: 2; width: min(560px, 88vw); text-align: center;
+  animation: introRise .9s var(--ease) both;
+}
+@keyframes introRise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+/* orbit */
+.intro-orbit { position: relative; width: 132px; height: 132px; margin: 0 auto 26px; }
+.intro-orbit .ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(110,231,255,.34);
+}
+.intro-orbit .r1 { border-color: rgba(110,231,255,.45); animation: orbit1 3.4s linear infinite; }
+.intro-orbit .r2 { border-color: rgba(167,139,250,.45); animation: orbit2 4.6s linear infinite; }
+.intro-orbit .r3 { border-color: rgba(255,94,168,.40); animation: orbit3 5.8s linear infinite; }
+@keyframes orbit1 { from { transform: rotateX(72deg) rotateZ(0); } to { transform: rotateX(72deg) rotateZ(360deg); } }
+@keyframes orbit2 { from { transform: rotateY(72deg) rotateZ(0); } to { transform: rotateY(72deg) rotateZ(-360deg); } }
+@keyframes orbit3 { from { transform: rotateX(38deg) rotateY(38deg) rotateZ(0); } to { transform: rotateX(38deg) rotateY(38deg) rotateZ(360deg); } }
+
+.intro-orbit .core {
+  position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border-radius: 50%; background: var(--grad);
+  box-shadow: 0 0 30px 6px rgba(167,139,250,.55);
+  animation: corePulse 1.7s var(--ease-in-out) infinite;
+}
+@keyframes corePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.42); } }
+
+/* wordmark: the outline draws, then the fill floods in behind it */
+.intro-word { width: 100%; height: auto; display: block; }
+.intro-word text[stroke] {
+  stroke-dasharray: 620; stroke-dashoffset: 620;
+  animation: drawWord 1.5s var(--ease) .18s forwards;
+}
+@keyframes drawWord { to { stroke-dashoffset: 0; } }
+.intro-word text.fill { opacity: 0; animation: fillWord .9s var(--ease) 1.15s forwards; }
+@keyframes fillWord { to { opacity: 1; } }
+
+.intro-sub {
+  margin: 2px 0 26px; font-family: var(--mono); font-size: 11px;
+  letter-spacing: .42em; color: var(--text-faint);
+  opacity: 0; animation: fadeIn .8s var(--ease) 1.3s forwards;
+}
+
+/* the live tail of feeds connecting */
+.intro-log {
+  height: 132px; display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 5px; margin-bottom: 20px; overflow: hidden;
+  mask-image: linear-gradient(180deg, transparent, #000 45%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 45%);
+}
+.intro-line {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-dim);
+  animation: lineIn .34s var(--ease) both;
+}
+@keyframes lineIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.intro-line .f { width: 18px; }
+.intro-line .n { flex: 1; text-align: left; }
+.intro-line .ok { color: var(--good); font-size: 10px; letter-spacing: .1em; }
+
+.intro-meter { width: 100%; }
+.intro-track { height: 3px; border-radius: 99px; background: rgba(255,255,255,.10); overflow: hidden; }
+.intro-track i {
+  display: block; height: 100%; width: 0; border-radius: 99px;
+  background: var(--grad); box-shadow: 0 0 16px var(--accent);
+  transition: width .28s var(--ease);
+}
+.intro-meta {
+  display: flex; justify-content: space-between; margin-top: 9px;
+  font-family: var(--mono); font-size: 10.5px; color: var(--text-faint);
+}
+.intro-skip {
+  margin: 26px 0 0; font-size: 10.5px; color: var(--text-faint); opacity: 0;
+  animation: fadeIn .8s var(--ease) 2.2s forwards;
+}
+
+/* the short version, for reloads inside one session */
+#intro.quick .intro-log,
+#intro.quick .intro-meter,
+#intro.quick .intro-skip { display: none; }
+#intro.quick .intro-word text[stroke] { animation-duration: .5s; }
+#intro.quick .intro-word text.fill { animation-delay: .3s; animation-duration: .3s; }
+#intro.quick .intro-sub { animation-delay: .35s; }
+
+/* exit: the overlay rushes at the viewer and dissolves */
+#intro.warp { animation: warpOut .72s var(--ease-in-out) forwards; }
+@keyframes warpOut {
+  0%   { opacity: 1; transform: scale(1); filter: blur(0); }
+  45%  { opacity: .9; transform: scale(1.5); filter: blur(2px); }
+  100% { opacity: 0; transform: scale(6); filter: blur(22px); }
+}
+#intro.warp .intro-stage { animation: warpStage .72s var(--ease-in-out) forwards; }
+@keyframes warpStage {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.4) translateZ(400px); }
+}
+
+/* the page underneath arrives out of the warp */
+body.booted .topbar,
+body.booted .ticker { animation: chromeIn .7s var(--ease) both; }
+body.booted .view { animation: warpIn .8s var(--ease) both; }
+@keyframes chromeIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes warpIn {
+  from { opacity: 0; transform: scale(.86); filter: blur(9px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
 /* ============================ reveal animations ============================ */
 
 [data-reveal] {
@@ -474,20 +606,33 @@ body.has-pointer #cursor-glow { opacity: 1; }
 .stagger > * { opacity: 0; transform: translateY(18px) scale(.985); animation: pop .7s var(--ease) forwards; }
 @keyframes pop { to { opacity: 1; transform: none; } }
 
-/* page transition */
+/* page transition - the outgoing page falls away, the incoming one rushes in */
 @keyframes viewIn {
-  from { opacity: 0; transform: translateY(18px) scale(.994); filter: blur(6px); }
-  to   { opacity: 1; transform: none; filter: none; }
+  0%   { opacity: 0; transform: scale(1.16); filter: blur(14px); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
 }
 @keyframes viewOut {
-  from { opacity: 1; transform: none; filter: none; }
-  to   { opacity: 0; transform: translateY(-12px) scale(.996); filter: blur(5px); }
+  0%   { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: scale(.86); filter: blur(10px); }
 }
-.view.entering { animation: viewIn .58s var(--ease) both; }
-.view.leaving  { animation: viewOut .26s var(--ease-in-out) both; }
+.view.entering { animation: viewIn .62s var(--ease) both; }
+.view.leaving  { animation: viewOut .3s var(--ease-in-out) both; }
 
-::view-transition-old(root) { animation: viewOut .28s var(--ease-in-out) both; }
-::view-transition-new(root) { animation: viewIn .5s var(--ease) both; }
+::view-transition-old(root) { animation: viewOut .3s var(--ease-in-out) both; transform-origin: 50% 34%; }
+::view-transition-new(root) { animation: viewIn .58s var(--ease) both; transform-origin: 50% 34%; }
+
+/* a light sweep so the zoom reads as a deliberate cut rather than a stutter */
+#warpFlash {
+  position: fixed; inset: 0; z-index: 500; pointer-events: none; opacity: 0;
+  background: radial-gradient(60% 50% at 50% 34%, rgba(110,231,255,.16), transparent 70%);
+}
+#warpFlash.on { animation: warpFlash .52s var(--ease) both; }
+@keyframes warpFlash {
+  0%   { opacity: 0; transform: scale(.9); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.35); }
+}
 
 /* skeleton */
 .skel {
