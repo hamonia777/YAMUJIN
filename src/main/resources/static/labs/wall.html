@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>뉴스 월 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧱</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05060b;color:#e8ecf6;
+    font-family:Pretendard,-apple-system,'Segoe UI','Malgun Gothic',sans-serif;overflow:hidden}
+  .bar{position:fixed;top:0;left:0;right:0;height:44px;display:flex;align-items:center;gap:14px;
+    padding:0 18px;background:rgba(5,6,11,.82);backdrop-filter:blur(14px);
+    border-bottom:1px solid rgba(255,255,255,.08);z-index:10;font-size:12px}
+  .bar b{letter-spacing:.18em;background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .bar .dot{width:7px;height:7px;border-radius:50%;background:#34e0a1;box-shadow:0 0 10px #34e0a1;
+    animation:blink 1.6s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  .bar .spacer{flex:1}
+  .bar button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#9aa4bd;
+    border-radius:9px;padding:5px 11px;cursor:pointer;font-size:11.5px}
+  .bar button:hover{color:#fff;border-color:#6ee7ff}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;
+    padding:58px 14px 14px;height:100%}
+  .col{overflow:hidden;position:relative;mask-image:linear-gradient(180deg,transparent,#000 7%,#000 93%,transparent)}
+  .track{display:flex;flex-direction:column;gap:12px;will-change:transform}
+  .item{padding:14px;border-radius:15px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(8px)}
+  .item .m{font-size:10.5px;color:#636d86;display:flex;gap:7px;align-items:center;margin-bottom:7px}
+  .item .m .s{color:#6ee7ff;font-weight:600}
+  .item h3{margin:0;font-size:14px;font-weight:600;line-height:1.5}
+  .item .k{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px}
+  .item .k span{font-size:9.5px;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.06);
+    color:#9aa4bd;font-family:ui-monospace,monospace}
+  .heat{height:2px;margin-top:10px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
+  .heat i{display:block;height:100%;background:linear-gradient(90deg,#6ee7ff,#ff5ea8)}
+  .loading{position:fixed;inset:0;display:grid;place-items:center;color:#636d86;font-size:13px}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="dot"></span><b>YAMUJIN</b> <span style="color:#636d86">뉴스 월</span>
+  <span class="spacer"></span>
+  <span id="stat" style="color:#636d86"></span>
+  <button onclick="location.reload()">새로고침</button>
+  <button onclick="document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()">전체화면</button>
+</div>
+<div class="loading" id="loading">피드 수집 중…</div>
+<div class="cols" id="cols"></div>
+
+<script>
+const COLS = Math.max(2, Math.min(6, Math.floor(window.innerWidth / 330)));
+
+async function load() {
+  const res = await fetch('/api/news?limit=90').then(r => r.json()).catch(() => null);
+  const items = res?.items || [];
+  document.getElementById('loading').remove();
+  document.getElementById('stat').textContent = `${items.length}건 · ${new Date().toLocaleTimeString('ko-KR')}`;
+
+  const cols = document.getElementById('cols');
+  cols.innerHTML = '';
+  for (let c = 0; c < COLS; c++) {
+    const col = document.createElement('div');
+    col.className = 'col';
+    const track = document.createElement('div');
+    track.className = 'track';
+    const slice = items.filter((_, i) => i % COLS === c);
+    const build = () => slice.map(a => {
+      const node = document.createElement('a');
+      node.className = 'item';
+      node.href = a.link; node.target = '_blank'; node.rel = 'noopener';
+      node.style.color = 'inherit'; node.style.textDecoration = 'none'; node.style.display = 'block';
+      node.innerHTML = `
+        <div class="m"><span style="font-size:13px">${a.flag}</span><span class="s">${esc(a.source)}</span>·<span>${esc(a.relative)}</span></div>
+        <h3>${esc(a.title)}</h3>
+        <div class="k">${(a.keywords || []).slice(0,4).map(k => `<span>${esc(k)}</span>`).join('')}</div>
+        <div class="heat"><i style="width:${Math.min(100, a.heat)}%"></i></div>`;
+      return node;
+    });
+    build().forEach(n => track.append(n));
+    build().forEach(n => track.append(n));
+    col.append(track);
+    cols.append(col);
+
+    // each column drifts at its own speed, alternating direction
+    const dir = c % 2 === 0 ? -1 : 1;
+    const speed = 0.16 + (c % 3) * 0.05;
+    let y = dir === -1 ? 0 : -track.scrollHeight / 2;
+    const step = () => {
+      y += dir * speed;
+      const half = track.scrollHeight / 2;
+      if (dir === -1 && y <= -half) y = 0;
+      if (dir === 1 && y >= 0) y = -half;
+      track.style.transform = `translateY(${y}px)`;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+load();
+setInterval(load, 8 * 60 * 1000);
+</script>
+</body>
+</html>

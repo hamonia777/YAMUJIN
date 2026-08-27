@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>세계 시계 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕐</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05060b;color:#e8ecf6;overflow-x:hidden;
+    font-family:Pretendard,-apple-system,'Segoe UI','Malgun Gothic',sans-serif}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(50vw 50vw at 12% 8%,rgba(79,70,229,.20),transparent),
+    radial-gradient(46vw 46vw at 88% 22%,rgba(6,182,212,.18),transparent),
+    radial-gradient(40vw 40vw at 50% 92%,rgba(219,39,119,.15),transparent);filter:blur(50px);pointer-events:none}
+  .head{position:relative;padding:26px 30px 10px}
+  .head b{letter-spacing:.2em;font-size:15px;
+    background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .head div{color:#636d86;font-size:11.5px;margin-top:3px}
+  .grid{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:16px;padding:16px 30px 40px}
+  .c{padding:20px;border-radius:20px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(14px);
+    transition:transform .45s cubic-bezier(.22,1,.36,1),border-color .45s}
+  .c:hover{transform:translateY(-5px);border-color:rgba(110,231,255,.5)}
+  .c .top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .c .top .f{font-size:26px}
+  .c .top .n{font-size:14px;font-weight:600}
+  .c .top .tz{margin-left:auto;font-size:10.5px;color:#636d86;font-family:ui-monospace,monospace}
+  .c .time{font-family:ui-monospace,monospace;font-size:42px;font-weight:600;letter-spacing:-.03em;line-height:1}
+  .c .date{font-size:11.5px;color:#636d86;margin-top:4px}
+  .c .dayline{height:4px;border-radius:99px;margin:14px 0;overflow:hidden;background:rgba(255,255,255,.08);position:relative}
+  .c .dayline i{position:absolute;top:0;bottom:0;width:2px;background:#ff5ea8;box-shadow:0 0 10px #ff5ea8}
+  .c .dayline u{position:absolute;top:0;bottom:0;left:0;
+    background:linear-gradient(90deg,#0b1020,#6ee7ff55,#ffcf5c66,#6ee7ff55,#0b1020);width:100%}
+  .c a{display:block;color:#9aa4bd;text-decoration:none;font-size:12.5px;padding:8px 0;
+    border-top:1px solid rgba(255,255,255,.07);line-height:1.45}
+  .c a:hover{color:#6ee7ff}
+  .c .cnt{font-size:10.5px;color:#4a5570;font-family:ui-monospace,monospace;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="head"><b>YAMUJIN</b><div>WORLD CLOCK · 그 시각, 그 지역의 최신 기사</div></div>
+<div class="grid" id="grid"></div>
+
+<script>
+const ZONES = [
+  { region:'KR',    label:'서울',       tz:'Asia/Seoul' },
+  { region:'JP',    label:'도쿄',       tz:'Asia/Tokyo' },
+  { region:'CN',    label:'베이징',     tz:'Asia/Shanghai' },
+  { region:'EU',    label:'런던',       tz:'Europe/London' },
+  { region:'US',    label:'뉴욕',       tz:'America/New_York' },
+  { region:'WORLD', label:'UTC',        tz:'UTC' },
+];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const grid = document.getElementById('grid');
+const cards = {};
+
+ZONES.forEach(z => {
+  const node = document.createElement('div');
+  node.className = 'c';
+  node.innerHTML = `
+    <div class="top"><span class="f">·</span><span class="n">${z.label}</span><span class="tz">${z.tz}</span></div>
+    <div class="time">--:--:--</div>
+    <div class="date"></div>
+    <div class="dayline"><u></u><i></i></div>
+    <div class="news"></div>
+    <div class="cnt"></div>`;
+  grid.append(node);
+  cards[z.region] = node;
+});
+
+function tick(){
+  const now = new Date();
+  ZONES.forEach(z => {
+    const node = cards[z.region];
+    const time = new Intl.DateTimeFormat('ko-KR', { timeZone: z.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(now);
+    const date = new Intl.DateTimeFormat('ko-KR', { timeZone: z.tz, month:'long', day:'numeric', weekday:'long' }).format(now);
+    node.querySelector('.time').textContent = time;
+    node.querySelector('.date').textContent = date;
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: z.tz, hour:'2-digit', minute:'2-digit', hour12:false }).format(now).split(':');
+    const pct = ((+parts[0]) * 60 + (+parts[1])) / 1440 * 100;
+    node.querySelector('.dayline i').style.left = pct + '%';
+  });
+  requestAnimationFrame(tick);
+}
+tick();
+
+async function load(){
+  const pulse = await fetch('/api/news/pulse').then(r => r.json()).catch(() => []);
+  for (const z of ZONES){
+    const node = cards[z.region];
+    const p = pulse.find(x => x.region === z.region);
+    if (p) node.querySelector('.f').textContent = p.flag;
+    const res = await fetch(`/api/news?region=${z.region}&limit=3`).then(r => r.json()).catch(() => null);
+    const items = res?.items || [];
+    node.querySelector('.news').innerHTML = items.map(a =>
+      `<a href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.title)}</a>`).join('');
+    node.querySelector('.cnt').textContent = `${res?.total ?? 0}건 수집 · ${p ? '감성 ' + p.sentiment : ''}`;
+  }
+}
+load(); setInterval(load, 7*60*1000);
+</script>
+</body>
+</html>

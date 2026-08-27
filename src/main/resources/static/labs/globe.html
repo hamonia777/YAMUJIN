@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>회전 지구본 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:radial-gradient(circle at 50% 40%,#0b1020,#04050a 70%);
+    color:#e8ecf6;font-family:Pretendard,-apple-system,'Segoe UI','Malgun Gothic',sans-serif;overflow:hidden}
+  canvas{position:fixed;inset:0;width:100%;height:100%}
+  .hud{position:fixed;top:16px;left:18px;z-index:5;font-size:12px}
+  .hud b{letter-spacing:.18em;background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-size:14px}
+  .hud div{color:#636d86;margin-top:4px}
+  .panel{position:fixed;right:18px;top:16px;bottom:16px;width:min(340px,38vw);z-index:5;
+    overflow-y:auto;display:flex;flex-direction:column;gap:9px;scrollbar-width:thin}
+  .rc{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(10px);cursor:pointer;transition:.3s}
+  .rc:hover{border-color:#6ee7ff;transform:translateX(-4px)}
+  .rc .t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+  .rc .t small{margin-left:auto;color:#636d86;font-family:ui-monospace,monospace;font-size:10.5px}
+  .rc .bar{height:3px;margin-top:8px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+  .rc .bar i{display:block;height:100%;background:linear-gradient(90deg,#6ee7ff,#ff5ea8)}
+  .rc p{margin:8px 0 0;font-size:11.5px;color:#9aa4bd;line-height:1.5}
+  .legend{position:fixed;left:18px;bottom:16px;z-index:5;font-size:11px;color:#636d86}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud"><b>YAMUJIN</b><div>GLOBAL NEWS DENSITY · 실시간</div></div>
+<div class="panel" id="panel"></div>
+<div class="legend">드래그: 회전 · 휠: 확대 · 초록=긍정 / 붉음=부정</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, R;
+let rotY = 0, rotX = -0.25, dragging = false, lastX = 0, lastY = 0, zoom = 1, spin = 0.0032;
+let pulse = [];
+
+const COORD = { KR:[127,37.5], US:[-98,39], EU:[10,50], JP:[138,36], CN:[105,35], WORLD:[-55,-15] };
+
+function resize(){
+  W = canvas.width = innerWidth * devicePixelRatio;
+  H = canvas.height = innerHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  R = Math.min(innerWidth, innerHeight) * 0.32;
+}
+resize(); addEventListener('resize', resize);
+
+function project(lon, lat){
+  const p = lat * Math.PI/180, l = (lon * Math.PI/180) + rotY;
+  let x = Math.cos(p) * Math.sin(l);
+  let y = Math.sin(p);
+  let z = Math.cos(p) * Math.cos(l);
+  const cx = Math.cos(rotX), sx = Math.sin(rotX);
+  const y2 = y * cx - z * sx, z2 = y * sx + z * cx;
+  return { x: innerWidth/2 + x * R * zoom, y: innerHeight/2 - y2 * R * zoom, z: z2 };
+}
+
+function draw(){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  const cx = innerWidth/2, cy = innerHeight/2, r = R * zoom;
+
+  // atmosphere
+  const g = ctx.createRadialGradient(cx, cy, r*0.6, cx, cy, r*1.35);
+  g.addColorStop(0,'rgba(110,231,255,.05)');
+  g.addColorStop(1,'rgba(110,231,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,r*1.35,0,7); ctx.fill();
+
+  // meridians
+  for (let lon = -180; lon < 180; lon += 15){
+    ctx.beginPath();
+    let started = false;
+    for (let lat = -90; lat <= 90; lat += 3){
+      const p = project(lon, lat);
+      if (p.z < 0){ started = false; continue; }
+      started ? ctx.lineTo(p.x,p.y) : (ctx.moveTo(p.x,p.y), started = true);
+    }
+    ctx.strokeStyle = 'rgba(110,231,255,.13)'; ctx.lineWidth = .7; ctx.stroke();
+  }
+  // parallels
+  for (let lat = -75; lat <= 75; lat += 15){
+    ctx.beginPath();
+    let started = false;
+    for (let lon = -180; lon <= 180; lon += 3){
+      const p = project(lon, lat);
+      if (p.z < 0){ started = false; continue; }
+      started ? ctx.lineTo(p.x,p.y) : (ctx.moveTo(p.x,p.y), started = true);
+    }
+    ctx.strokeStyle = lat === 0 ? 'rgba(167,139,250,.34)' : 'rgba(110,231,255,.10)';
+    ctx.lineWidth = lat === 0 ? 1.2 : .6; ctx.stroke();
+  }
+
+  // rim
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,7);
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.stroke();
+
+  // markers
+  const max = Math.max(1, ...pulse.map(p => p.count));
+  const t = performance.now()/1000;
+  for (const p of pulse){
+    const c = COORD[p.region]; if (!c) continue;
+    const pt = project(c[0], c[1]);
+    const front = pt.z > 0;
+    const size = 4 + (p.count/max) * 13;
+    const color = p.sentiment < -0.12 ? '255,107,107' : p.sentiment > 0.12 ? '52,224,161' : '110,231,255';
+    ctx.globalAlpha = front ? 1 : 0.16;
+
+    const ring = (Math.sin(t*1.6 + p.count) + 1) / 2;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, size + ring*16, 0, 7);
+    ctx.strokeStyle = `rgba(${color},${(1-ring)*.5})`; ctx.lineWidth = 1.3; ctx.stroke();
+
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, size, 0, 7);
+    ctx.fillStyle = `rgba(${color},.9)`;
+    ctx.shadowBlur = 22; ctx.shadowColor = `rgba(${color},.9)`;
+    ctx.fill(); ctx.shadowBlur = 0;
+
+    if (front){
+      ctx.font = '600 12px Pretendard, sans-serif';
+      ctx.fillStyle = 'rgba(232,236,246,.94)'; ctx.textAlign = 'center';
+      ctx.fillText(`${p.label} ${p.count}`, pt.x, pt.y - size - 9);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (!dragging) rotY += spin;
+  requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', () => dragging = false);
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  rotY += (e.clientX - lastX) * 0.006;
+  rotX = Math.max(-1.3, Math.min(1.3, rotX + (e.clientY - lastY) * 0.005));
+  lastX = e.clientX; lastY = e.clientY;
+});
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(.55, Math.min(2.4, zoom - e.deltaY * 0.0012)); }, {passive:false});
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function load(){
+  pulse = await fetch('/api/news/pulse').then(r => r.json()).catch(() => []);
+  const panel = document.getElementById('panel');
+  const max = Math.max(1, ...pulse.map(p => p.count));
+  panel.innerHTML = pulse.map(p => `
+    <div class="rc" onclick="window.open('/#/news?region=${p.region}','_blank')">
+      <div class="t"><span style="font-size:16px">${p.flag}</span>${esc(p.label)}<small>${p.count}건</small></div>
+      <div class="bar"><i style="width:${(p.count/max)*100}%"></i></div>
+      <p>${(p.top||[]).slice(0,2).map(t => esc(t)).join('<br>') || '수집 중'}</p>
+    </div>`).join('');
+}
+load(); setInterval(load, 6*60*1000);
+draw();
+</script>
+</body>
+</html>

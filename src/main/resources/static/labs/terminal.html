@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>터미널 뉴스 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💻</text></svg>">
+<style>
+  html,body{height:100%;margin:0;background:#07100c;overflow:hidden}
+  body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:3;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.68) 100%)}
+  #t{position:absolute;inset:0;padding:26px 30px 30px;overflow-y:auto;
+    font-family:'JetBrains Mono',ui-monospace,'Consolas',monospace;font-size:13.5px;line-height:1.62;
+    color:#4ade80;text-shadow:0 0 8px rgba(74,222,128,.45);white-space:pre-wrap;word-break:break-word}
+  #t::-webkit-scrollbar{width:8px}
+  #t::-webkit-scrollbar-thumb{background:rgba(74,222,128,.28);border-radius:9px}
+  .dim{color:#1f7a45}
+  .hi{color:#d9ffe9;text-shadow:0 0 12px rgba(217,255,233,.6)}
+  .warn{color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,.5)}
+  .cur{display:inline-block;width:9px;height:15px;background:#4ade80;vertical-align:-2px;
+    animation:b 1s steps(1) infinite}
+  @keyframes b{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+</head>
+<body>
+<div id="t"></div>
+<script>
+const T = document.getElementById('t');
+let queue = [], typing = false;
+
+function esc(s){ return String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function push(html, speed = 9){ queue.push({ html, speed }); if (!typing) run(); }
+
+async function run(){
+  typing = true;
+  while (queue.length){
+    const { html, speed } = queue.shift();
+    const span = document.createElement('span');
+    T.append(span);
+    // type out plain text, then swap in the markup so tags never appear character by character
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    const plain = tmp.textContent;
+    for (let i = 0; i < plain.length; i++){
+      span.textContent = plain.slice(0, i + 1);
+      T.scrollTop = T.scrollHeight;
+      if (speed) await new Promise(r => setTimeout(r, speed));
+    }
+    span.innerHTML = html + '\n';
+    T.scrollTop = T.scrollHeight;
+    if (T.textContent.length > 24000) T.textContent = T.textContent.slice(-14000);
+  }
+  typing = false;
+  const cur = document.createElement('span'); cur.className = 'cur';
+  T.append(cur);
+  setTimeout(() => cur.remove(), 2200);
+}
+
+const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
+
+async function boot(){
+  push('<span class="dim">YAMUJIN NEWS TERMINAL v1.0 (c) 2026</span>', 4);
+  push('<span class="dim">initializing feed sockets...</span>', 4);
+  push('<span class="dim">handshake: 6 regions / 34 sources</span>', 4);
+  push('', 0);
+
+  const meta = await fetch('/api/meta').then(r => r.json()).catch(() => null);
+  if (meta){
+    push(`<span class="dim">engine  :</span> <span class="hi">${esc(meta.claude.engine)}</span> ${meta.claude.live ? '' : '<span class="warn">(local fallback)</span>'}`, 5);
+    push(`<span class="dim">cached  :</span> ${meta.crawler?.cachedArticles ?? 0} articles`, 5);
+  }
+  push('', 0);
+  cycle();
+}
+
+async function cycle(){
+  const res = await fetch('/api/news?limit=40').then(r => r.json()).catch(() => null);
+  const items = res?.items || [];
+  push('<span class="dim">$ yamujin --tail --all-regions</span>', 16);
+  push('', 0);
+
+  for (const a of items){
+    const stamp = new Date(a.publishedAt).toLocaleTimeString('ko-KR', { hour12:false });
+    const sent = a.sentiment < -0.15 ? '<span class="warn">[NEG]</span>'
+               : a.sentiment > 0.15 ? '<span class="hi">[POS]</span>' : '<span class="dim">[   ]</span>';
+    push(`<span class="dim">${stamp}</span> ${sent} <span class="dim">${esc(pad(a.source, 16))}</span> <span class="hi">${esc(a.title)}</span>`, 7);
+    if (a.snippet) push(`<span class="dim">          ${esc(a.snippet.slice(0, 110))}</span>`, 2);
+    await new Promise(r => setTimeout(r, 90));
+  }
+  push('', 0);
+  push('<span class="dim">-- end of buffer, sleeping 3m --</span>', 12);
+  setTimeout(cycle, 3 * 60 * 1000);
+}
+boot();
+</script>
+</body>
+</html>

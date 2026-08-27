@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>헤드라인 매트릭스 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🟩</text></svg>">
+<style>
+  html,body{height:100%;margin:0;background:#000;overflow:hidden;cursor:none}
+  canvas{display:block;width:100%;height:100%}
+  .cap{position:fixed;left:0;right:0;bottom:0;padding:22px 26px;z-index:5;
+    background:linear-gradient(0deg,rgba(0,0,0,.94),transparent);
+    font-family:Pretendard,'Malgun Gothic',sans-serif;color:#7dffb0}
+  .cap .s{font-size:11px;color:#2f8f5c;letter-spacing:.2em;margin-bottom:6px;font-family:ui-monospace,monospace}
+  .cap .t{font-size:clamp(16px,2.4vw,26px);font-weight:600;line-height:1.4;
+    text-shadow:0 0 22px rgba(52,224,161,.55);transition:opacity .6s}
+  .hint{position:fixed;top:14px;right:18px;color:#2f8f5c;font-size:10.5px;
+    font-family:ui-monospace,monospace;z-index:5}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hint">YAMUJIN LAB · 아무 키나 누르면 다음 헤드라인</div>
+<div class="cap"><div class="s" id="src">CONNECTING…</div><div class="t" id="title">피드 수집 중</div></div>
+
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let W, H, cols, drops = [], glyphs = [];
+const FONT = 17;
+
+function resize(){
+  W = canvas.width = innerWidth * devicePixelRatio;
+  H = canvas.height = innerHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  cols = Math.floor(innerWidth / FONT);
+  drops = Array.from({length: cols}, () => Math.random() * -60);
+}
+resize(); addEventListener('resize', resize);
+
+const KATA = 'アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロン0123456789';
+function pick(){
+  if (glyphs.length && Math.random() < 0.55){
+    const w = glyphs[Math.floor(Math.random()*glyphs.length)];
+    return w[Math.floor(Math.random()*w.length)];
+  }
+  return KATA[Math.floor(Math.random()*KATA.length)];
+}
+
+function draw(){
+  ctx.fillStyle = 'rgba(0,0,0,.075)';
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.font = `${FONT}px ui-monospace, monospace`;
+  for (let i = 0; i < cols; i++){
+    const ch = pick();
+    const x = i * FONT, y = drops[i] * FONT;
+    ctx.fillStyle = '#d7ffe9';
+    ctx.fillText(ch, x, y);
+    ctx.fillStyle = 'rgba(52,224,161,.75)';
+    ctx.fillText(pick(), x, y - FONT);
+    if (y > innerHeight && Math.random() > 0.975) drops[i] = 0;
+    drops[i] += 0.55 + Math.random() * 0.35;
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+
+let items = [], idx = 0;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function show(){
+  if (!items.length) return;
+  const a = items[idx % items.length];
+  idx++;
+  const t = document.getElementById('title'), s = document.getElementById('src');
+  t.style.opacity = '0';
+  setTimeout(() => {
+    t.textContent = a.title;
+    s.textContent = `${a.flag}  ${a.source}  ·  ${a.relative}  ·  HEAT ${Math.round(a.heat)}`;
+    t.style.opacity = '1';
+  }, 380);
+}
+
+async function load(){
+  const res = await fetch('/api/news?limit=60').then(r => r.json()).catch(() => null);
+  items = res?.items || [];
+  glyphs = items.flatMap(a => a.keywords || []).filter(Boolean);
+  show();
+}
+load();
+setInterval(show, 6500);
+setInterval(load, 8*60*1000);
+addEventListener('keydown', show);
+addEventListener('click', show);
+</script>
+</body>
+</html>

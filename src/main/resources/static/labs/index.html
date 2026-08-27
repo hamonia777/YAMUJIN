@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YAMUJIN LAB · 독립 페이지</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⌬</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:#05060b;color:#e8ecf6;
+    font-family:Pretendard,-apple-system,'Segoe UI','Malgun Gothic',sans-serif}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(46vw 46vw at 10% 6%,rgba(79,70,229,.22),transparent),
+    radial-gradient(42vw 42vw at 90% 26%,rgba(6,182,212,.18),transparent),
+    radial-gradient(38vw 38vw at 46% 96%,rgba(219,39,119,.16),transparent);filter:blur(56px);pointer-events:none}
+  .wrap{position:relative;max-width:1080px;margin:0 auto;padding:60px 26px 80px}
+  h1{font-size:clamp(30px,5vw,52px);margin:0 0 10px;letter-spacing:-.04em;font-weight:800}
+  h1 span{background:linear-gradient(120deg,#6ee7ff,#a78bfa,#ff5ea8);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  p.lede{color:#9aa4bd;max-width:60ch;margin:0 0 26px;line-height:1.7}
+  .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+  a.card{display:block;padding:22px;border-radius:20px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.09);text-decoration:none;color:inherit;
+    transition:transform .45s cubic-bezier(.22,1,.36,1),border-color .45s,box-shadow .45s}
+  a.card:hover{transform:translateY(-6px);border-color:rgba(110,231,255,.55);
+    box-shadow:0 24px 50px -26px rgba(110,231,255,.6)}
+  a.card .ic{font-size:34px;margin-bottom:10px}
+  a.card h3{margin:0 0 6px;font-size:16px}
+  a.card p{margin:0;font-size:12.5px;color:#9aa4bd;line-height:1.6}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin:26px 0 34px}
+  button,.btn{padding:10px 18px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#e8ecf6;
+    text-decoration:none;display:inline-flex;align-items:center;gap:7px;transition:.3s}
+  button:hover,.btn:hover{border-color:#6ee7ff;transform:translateY(-2px)}
+  .primary{background:linear-gradient(120deg,#6ee7ff,#a78bfa,#ff5ea8);color:#05060b;border-color:transparent}
+  footer{margin-top:40px;color:#4a5570;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>YAMUJIN <span>LAB</span></h1>
+  <p class="lede">각각 완전히 독립된 HTML 페이지입니다. 여러 개를 동시에 띄워도 서로 간섭하지 않고,
+    모두 같은 백엔드에서 실시간 데이터를 받습니다. 모니터마다 하나씩 띄워두는 용도로 만들었습니다.</p>
+  <div class="bar">
+    <button class="primary" id="all">⚡ 전부 새 탭으로 동시에 열기</button>
+    <a class="btn" href="/">← 메인 대시보드</a>
+  </div>
+  <div class="g" id="g"></div>
+  <footer id="foot">상태 확인 중…</footer>
+</div>
+<script>
+const LABS = [
+  { f:'wall.html',     i:'🧱', n:'뉴스 월',           d:'전세계 헤드라인이 끝없이 흐르는 전체화면 월. 컬럼마다 속도와 방향이 다릅니다.' },
+  { f:'globe.html',    i:'🌐', n:'회전 지구본',       d:'와이어프레임 지구본 위에 권역별 뉴스 밀도. 드래그로 돌리고 휠로 확대.' },
+  { f:'radar.html',    i:'📡', n:'정세 레이더',       d:'대한민국 5축 정세를 레이더 차트로 그리는 실시간 상황판.' },
+  { f:'matrix.html',   i:'🟩', n:'헤드라인 매트릭스', d:'수집된 키워드가 초록 비처럼 떨어지는 스크린세이버.' },
+  { f:'clock.html',    i:'🕐', n:'세계 시계',         d:'6개 권역 현재 시각과 그 지역 최신 기사를 나란히.' },
+  { f:'terminal.html', i:'💻', n:'터미널 뉴스',       d:'80년대 CRT 터미널 감성으로 뉴스를 타이핑해서 출력.' },
+];
+const g = document.getElementById('g');
+g.innerHTML = LABS.map(l => `
+  <a class="card" href="${l.f}" target="_blank" rel="noopener">
+    <div class="ic">${l.i}</div><h3>${l.n}</h3><p>${l.d}</p>
+  </a>`).join('');
+document.getElementById('all').onclick = () =>
+  LABS.forEach((l, i) => setTimeout(() => window.open(l.f, '_blank', 'noopener'), i * 250));
+
+fetch('/api/meta').then(r => r.json()).then(m => {
+  document.getElementById('foot').textContent =
+    `${m.claude.live ? 'Claude ' + m.claude.engine : '로컬 엔진'} · ${m.shopping.live ? '쇼핑 실가격 ON' : '쇼핑 딥링크 모드'} · 캐시 ${m.crawler?.cachedArticles ?? 0}건`;
+}).catch(() => { document.getElementById('foot').textContent = '백엔드에 연결하지 못했습니다.'; });
+</script>
+</body>
+</html>

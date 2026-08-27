@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>정세 레이더 · YAMUJIN LAB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05060b;color:#e8ecf6;
+    font-family:Pretendard,-apple-system,'Segoe UI','Malgun Gothic',sans-serif;overflow:hidden}
+  .wrap{display:grid;grid-template-columns:minmax(340px,1fr) minmax(300px,420px);height:100%;gap:0}
+  @media(max-width:860px){.wrap{grid-template-columns:1fr;grid-template-rows:1fr auto}}
+  .stage{position:relative;display:grid;place-items:center}
+  canvas{max-width:100%;max-height:100%}
+  .side{border-left:1px solid rgba(255,255,255,.08);padding:22px;overflow-y:auto;
+    background:rgba(255,255,255,.02)}
+  h1{margin:0 0 4px;font-size:15px;letter-spacing:.18em;
+    background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#636d86;font-size:11.5px;margin-bottom:18px}
+  .big{font-size:64px;font-weight:800;letter-spacing:-.05em;line-height:1}
+  .grade{font-size:15px;color:#ffcf5c;margin-bottom:4px}
+  .desc{font-size:12.5px;color:#9aa4bd;margin-bottom:18px}
+  .row{display:grid;grid-template-columns:70px 1fr 34px;gap:10px;align-items:center;font-size:12px;margin-bottom:9px}
+  .track{height:6px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+  .track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#6ee7ff,#ff5ea8);
+    width:0;transition:width 1.2s cubic-bezier(.22,1,.36,1)}
+  .num{text-align:right;font-family:ui-monospace,monospace;color:#9aa4bd;font-size:11px}
+  .kw{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .kw span{font-size:11px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.09);color:#9aa4bd}
+  .foot{margin-top:20px;font-size:10.5px;color:#4a5570;line-height:1.6}
+  .hl{margin-top:18px;font-size:12px}
+  .hl a{display:block;color:#9aa4bd;text-decoration:none;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+  .hl a:hover{color:#6ee7ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage"><canvas id="c" width="640" height="640"></canvas></div>
+  <div class="side">
+    <h1>KOREA PULSE</h1>
+    <div class="sub">대한민국 정세 실시간 상황판</div>
+    <div class="big" id="pulse">--</div>
+    <div class="grade" id="grade">측정 중</div>
+    <div class="desc" id="desc"></div>
+    <div id="axes"></div>
+    <div class="kw" id="kw"></div>
+    <div class="hl" id="hl"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let axes = {}, target = {}, sweep = 0;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function draw(){
+  const S = canvas.width, C = S/2, R = S*0.36;
+  ctx.clearRect(0,0,S,S);
+  const keys = Object.keys(target);
+  const n = keys.length || 5;
+
+  // rings
+  for (let i = 1; i <= 4; i++){
+    ctx.beginPath();
+    for (let k = 0; k <= n; k++){
+      const a = (k/n)*Math.PI*2 - Math.PI/2;
+      const r = R * (i/4);
+      k ? ctx.lineTo(C + Math.cos(a)*r, C + Math.sin(a)*r) : ctx.moveTo(C + Math.cos(a)*r, C + Math.sin(a)*r);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  // spokes + labels
+  keys.forEach((k, i) => {
+    const a = (i/n)*Math.PI*2 - Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(C,C);
+    ctx.lineTo(C + Math.cos(a)*R, C + Math.sin(a)*R);
+    ctx.strokeStyle = 'rgba(255,255,255,.09)'; ctx.stroke();
+    ctx.font = '600 14px Pretendard, sans-serif';
+    ctx.fillStyle = '#9aa4bd'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(k, C + Math.cos(a)*(R+30), C + Math.sin(a)*(R+30));
+  });
+
+  // radar sweep
+  sweep += 0.016;
+  const g = ctx.createConicGradient ? null : null;
+  ctx.save();
+  ctx.translate(C,C); ctx.rotate(sweep);
+  const grad = ctx.createLinearGradient(0,0,R,0);
+  grad.addColorStop(0,'rgba(110,231,255,.28)');
+  grad.addColorStop(1,'rgba(110,231,255,0)');
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,-0.42,0); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.restore();
+
+  // polygon (eased toward target)
+  ctx.beginPath();
+  keys.forEach((k, i) => {
+    axes[k] = (axes[k] ?? 0) + ((target[k] ?? 0) - (axes[k] ?? 0)) * 0.06;
+    const a = (i/n)*Math.PI*2 - Math.PI/2;
+    const r = R * (axes[k]/100);
+    i ? ctx.lineTo(C + Math.cos(a)*r, C + Math.sin(a)*r) : ctx.moveTo(C + Math.cos(a)*r, C + Math.sin(a)*r);
+  });
+  ctx.closePath();
+  const fill = ctx.createRadialGradient(C,C,10,C,C,R);
+  fill.addColorStop(0,'rgba(167,139,250,.45)');
+  fill.addColorStop(1,'rgba(255,94,168,.18)');
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2; ctx.stroke();
+
+  keys.forEach((k, i) => {
+    const a = (i/n)*Math.PI*2 - Math.PI/2;
+    const r = R * (axes[k]/100);
+    ctx.beginPath(); ctx.arc(C + Math.cos(a)*r, C + Math.sin(a)*r, 4.5, 0, 7);
+    ctx.fillStyle = '#6ee7ff'; ctx.shadowBlur = 14; ctx.shadowColor = '#6ee7ff'; ctx.fill(); ctx.shadowBlur = 0;
+  });
+
+  requestAnimationFrame(draw);
+}
+draw();
+
+async function load(){
+  const d = await fetch('/api/korea/pulse').then(r => r.json()).catch(() => null);
+  if (!d) return;
+  target = d.axes || {};
+  document.getElementById('pulse').textContent = d.pulse;
+  document.getElementById('grade').textContent = d.grade;
+  document.getElementById('desc').textContent = d.gradeDesc;
+  document.getElementById('axes').innerHTML = Object.entries(d.axes).map(([k,v]) => `
+    <div class="row"><span>${esc(k)}</span><span class="track"><i style="width:${v}%"></i></span><span class="num">${v}</span></div>`).join('');
+  document.getElementById('kw').innerHTML = (d.keywords||[]).slice(0,16).map(k => `<span>${esc(k.word)}</span>`).join('');
+  const tracks = Object.values(d.tracks || {}).flat().slice(0,8);
+  document.getElementById('hl').innerHTML = tracks.map(t =>
+    `<a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title)}</a>`).join('');
+  document.getElementById('foot').textContent = `${d.disclaimer} · 표본 ${d.sampleSize}건 · ${new Date().toLocaleTimeString('ko-KR')}`;
+}
+load(); setInterval(load, 10*60*1000);
+</script>
+</body>
+</html>
