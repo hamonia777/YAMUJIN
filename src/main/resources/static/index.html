@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="YAMUJIN - 전세계 뉴스를 크롤링해 Claude로 종합하는 개인 인텔리전스 데스크">
+<title>YAMUJIN · 글로벌 인텔리전스 허브</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Pretendard:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
+</head>
+<body>
+
+<!-- ambient layers -->
+<canvas id="starfield" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true">
+  <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+</div>
+<div class="grain" aria-hidden="true"></div>
+<div id="cursor-glow" aria-hidden="true"></div>
+
+<!-- top loading bar -->
+<div id="progress" aria-hidden="true"><i></i></div>
+
+<!-- header -->
+<header class="topbar">
+  <a class="brand" href="#/" data-nav>
+    <span class="brand-mark">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/>
+        <ellipse cx="16" cy="16" rx="13" ry="5.2" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".8"/>
+        <circle cx="16" cy="16" r="4" fill="currentColor"/>
+      </svg>
+    </span>
+    <span class="brand-text">
+      <b>YAMUJIN</b>
+      <small>글로벌 인텔리전스 허브</small>
+    </span>
+  </a>
+
+  <nav class="nav" id="nav">
+    <a href="#/"        data-nav data-icon="◎">대시보드</a>
+    <a href="#/news"    data-nav data-icon="◈">뉴스</a>
+    <a href="#/prism"   data-nav data-icon="◭">프리즘</a>
+    <a href="#/korea"   data-nav data-icon="⌖">정세</a>
+    <a href="#/market"  data-nav data-icon="⌁">마켓</a>
+    <a href="#/shop"    data-nav data-icon="◫">최저가</a>
+    <a href="#/graph"   data-nav data-icon="⁂">지식그래프</a>
+    <a href="#/ai"      data-nav data-icon="✦">AI 데스크</a>
+    <a href="#/labs"    data-nav data-icon="⌬">랩</a>
+    <a href="#/fun"     data-nav data-icon="☻">재미</a>
+    <span class="nav-pill" id="navPill" aria-hidden="true"></span>
+  </nav>
+
+  <div class="topbar-right">
+    <button class="icon-btn" id="cmdBtn" title="명령 팔레트 (Ctrl+K)" aria-label="명령 팔레트">
+      <span>⌘K</span>
+    </button>
+    <button class="icon-btn" id="refreshBtn" title="지금 다시 크롤링" aria-label="새로고침">↻</button>
+    <div id="authSlot"></div>
+  </div>
+</header>
+
+<!-- live ticker -->
+<div class="ticker" id="ticker" aria-label="실시간 헤드라인">
+  <div class="ticker-label">LIVE</div>
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- routed content -->
+<main id="view" class="view"></main>
+
+<footer class="foot">
+  <div>
+    <b>YAMUJIN</b> · 34개 피드 · 6개 권역 · Claude 종합
+    <span id="footMeta" class="foot-meta"></span>
+  </div>
+  <div class="foot-links">
+    <a href="/labs/index.html" target="_blank" rel="noopener">독립 랩 페이지 ↗</a>
+    <a href="#/me" data-nav>마이페이지</a>
+  </div>
+</footer>
+
+<!-- ============ overlays ============ -->
+
+<!-- command palette -->
+<div class="overlay" id="cmdOverlay" hidden>
+  <div class="cmd">
+    <input id="cmdInput" type="text" placeholder="어디로 갈까요? 검색어를 입력하면 뉴스도 찾습니다..." autocomplete="off">
+    <div class="cmd-list" id="cmdList"></div>
+    <div class="cmd-foot"><kbd>↑</kbd><kbd>↓</kbd> 이동 · <kbd>Enter</kbd> 실행 · <kbd>Esc</kbd> 닫기</div>
+  </div>
+</div>
+
+<!-- auth modal -->
+<div class="overlay" id="authOverlay" hidden>
+  <div class="modal auth-modal">
+    <button class="modal-x" data-close-auth aria-label="닫기">×</button>
+    <div class="auth-tabs">
+      <button class="active" data-auth-tab="login">로그인</button>
+      <button data-auth-tab="register">회원가입</button>
+    </div>
+    <form id="authForm" novalidate>
+      <label class="field" data-only="register">
+        <span>닉네임</span>
+        <input name="nickname" type="text" autocomplete="nickname" placeholder="야무진 사용자">
+      </label>
+      <label class="field">
+        <span>이메일</span>
+        <input name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+      </label>
+      <label class="field">
+        <span>비밀번호</span>
+        <input name="password" type="password" autocomplete="current-password" placeholder="6자 이상" required>
+      </label>
+      <p class="auth-msg" id="authMsg"></p>
+      <button class="btn primary block" type="submit" id="authSubmit">로그인</button>
+      <p class="auth-note">비밀번호는 BCrypt로 해싱되고, 세션은 JWT로 관리됩니다. 데이터는 이 컴퓨터의 H2 파일에만 저장됩니다.</p>
+    </form>
+  </div>
+</div>
+
+<!-- AI dock -->
+<button class="ai-fab" id="aiFab" title="야무진 비서 (Alt+A)" aria-label="AI 비서 열기">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.2 6.1L20.5 10l-5.4 3.1L16 20l-4-3.4L8 20l.9-6.9L3.5 10l6.3-1.9z" fill="currentColor"/></svg>
+</button>
+<aside class="ai-dock" id="aiDock" hidden>
+  <header>
+    <b>야무진 비서</b>
+    <span class="engine-chip" id="aiEngine"></span>
+    <button class="modal-x" id="aiClose" aria-label="닫기">×</button>
+  </header>
+  <div class="ai-log" id="aiLog"></div>
+  <form class="ai-input" id="aiForm">
+    <input id="aiQ" type="text" placeholder="지금 세계에서 무슨 일이 벌어지고 있나요?" autocomplete="off">
+    <button class="btn primary" type="submit">전송</button>
+  </form>
+</aside>
+
+<!-- boss key overlay (Ctrl+Alt+B) -->
+<div id="bossMode" hidden></div>
+
+<!-- toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script src="/js/app.js" type="module"></script>
+</body>
+</html>
