@@ -173,7 +173,9 @@ async function loadFooterMeta() {
   try {
     const meta = await api('/api/meta', { quiet: true });
     const parts = [];
-    parts.push(meta.claude.live ? `Claude ${meta.claude.engine}` : '로컬 엔진');
+    // the credential path matters when debugging a quiet failure - say which one answered
+    const via = /CLI/.test(meta.claude.source || '') ? ' (구독 CLI)' : '';
+    parts.push(meta.claude.live ? `Claude ${meta.claude.engine}${via}` : '로컬 엔진');
     parts.push(meta.shopping.live ? '쇼핑 실가격 ON' : '쇼핑 딥링크 모드');
     if (meta.crawler?.cachedArticles) parts.push(`캐시 ${meta.crawler.cachedArticles}건`);
     $('#footMeta').textContent = `· ${parts.join(' · ')}`;

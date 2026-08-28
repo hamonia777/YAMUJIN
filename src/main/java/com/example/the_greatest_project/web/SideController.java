@@ -139,12 +139,30 @@ public class SideController {
         m.put("claude", Map.of(
                 "live", claude.live(),
                 "engine", claude.engineName(),
-                "hint", claude.live() ? "Claude 연동됨" : "ANTHROPIC_API_KEY 미설정 - 로컬 엔진으로 동작 중"));
+                "source", claude.credentialSource(),
+                "hint", claude.live()
+                        ? "Claude 연동됨 · " + claude.credentialSource()
+                        : "자격증명 없음 - 로컬 엔진 동작 중 (claude 로그인, ant auth login, 또는 ANTHROPIC_API_KEY)"));
         m.put("shopping", Map.of(
                 "live", products.liveShopping(),
                 "hint", products.liveShopping() ? "네이버 쇼핑 API 연동됨"
                         : "NAVER_CLIENT_ID/SECRET 미설정 - 실가격 대신 몰별 딥링크 제공"));
         m.put("crawler", news.health());
+        return m;
+    }
+
+    /** Drops the cached credential probe so a fresh `ant auth login` takes effect without a restart. */
+    @PostMapping("/meta/recheck")
+    public Map<String, Object> recheck() {
+        claude.recheck();
+        boolean live = claude.live();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("live", live);
+        m.put("engine", claude.engineName());
+        m.put("source", claude.credentialSource());
+        m.put("message", live
+                ? "Claude 연결됨 · " + claude.credentialSource()
+                : "아직 자격증명을 찾지 못했습니다. claude 로그인 상태, ant auth login, ANTHROPIC_API_KEY 중 하나를 확인하세요.");
         return m;
     }
 

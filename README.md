@@ -30,16 +30,45 @@ java -jar build/libs/the_greatest_project-0.0.1-SNAPSHOT.jar \
 
 ---
 
-## 환경변수
+## Claude 자격증명 — API 키 없이 쓰기
 
-| 변수 | 없으면 | 있으면 |
+Claude를 붙이는 경로는 네 단계이고, **위에서부터 되는 걸 자동으로 씁니다.**
+
+| 순위 | 경로 | 필요한 것 | 과금 |
+|---|---|---|---|
+| 1 | Anthropic SDK | `ANTHROPIC_API_KEY` 환경변수 | API 조직 크레딧 |
+| 2 | Anthropic SDK | `ant auth login` OAuth 프로필 | API 조직 크레딧 |
+| 3 | **Claude Code CLI** | 이 PC에 `claude`가 설치·로그인돼 있으면 끝 | **구독 한도** |
+| 4 | 로컬 추출 엔진 | 없음 (네트워크도 불필요) | 무료 |
+
+3번이 기본 동작입니다. **키를 어디에도 붙여넣을 필요가 없습니다.** 이미 로그인된
+Claude Code를 헤드리스(`claude -p`)로 호출합니다. `~/.claude/.credentials.json` 을
+읽어가는 게 아니라 CLI를 서브프로세스로 띄우는 방식이라, 토큰은 그것을 소유한
+도구 안에 그대로 남습니다.
+
+CLI 호출은 순수 완성 엔드포인트처럼 동작하도록 잠가 두었습니다 — `--safe-mode`
+(CLAUDE.md·스킬·플러그인·훅 무시), `--strict-mcp-config`(MCP 미접속),
+`--max-turns 1`(도구 루프 없음), 작업 디렉터리는 프로젝트가 아닌 임시 폴더.
+프롬프트는 argv가 아니라 stdin으로 넘깁니다 — 윈도우 명령줄 길이 제한(약 32k)에
+하루치 뉴스 다이제스트가 그대로 걸리기 때문입니다.
+
+지금 어떤 경로로 붙어 있는지는 `GET /api/meta` 의 `claude.source` 가 알려주고,
+로그인 상태를 바꾼 뒤에는 재시작 없이 `POST /api/meta/recheck` 로 갱신됩니다.
+
+| 변수 | 기본값 | 용도 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | 로컬 추출 요약 | Claude가 브리핑·프리즘·정세분석·챗을 직접 작성 |
-| `CLAUDE_MODEL` | `claude-opus-5` | 원하는 모델로 교체 |
-| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 몰별 검색 딥링크만 제공 | 네이버 쇼핑 실가격 비교 + Claude 구매 판정 |
+| `ANTHROPIC_API_KEY` | 없음 | 있으면 1순위로 사용 |
+| `CLAUDE_MODEL` | `claude-sonnet-5` | 원하는 모델로 교체 |
+| `YAMUJIN_CLAUDE_USE_CLI` | `true` | `false` 면 CLI 경로를 끄고 로컬 엔진으로 내려감 |
+| `CLAUDE_CLI_PATH` | 자동 탐색 | PATH·`~/.local/bin` 밖에 있을 때만 지정 |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 없음 | 네이버 쇼핑 실가격 비교 + Claude 구매 판정 |
 | `JWT_SECRET` | 내장 개발용 키 | 운영용 서명 키 |
 
 ```powershell
+# 키 없이: claude 로그인만 돼 있으면 그대로 실행
+java -jar build\libs\the_greatest_project-0.0.1-SNAPSHOT.jar
+
+# API 키를 쓰고 싶을 때만
 $env:ANTHROPIC_API_KEY = "sk-ant-..."
 java -jar build\libs\the_greatest_project-0.0.1-SNAPSHOT.jar
 ```
