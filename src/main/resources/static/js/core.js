@@ -479,12 +479,15 @@ export function bindCommandPalette() {
   let items = [];
   let sel = 0;
 
-  const render = (rows) => {
+  const render = (rows, keepSel = false) => {
+    // search hits arrive after the actions are already on screen; folding them in
+    // must not yank the highlight back to the top under the user's fingers
+    const prev = keepSel ? sel : 0;
     items = rows;
-    sel = 0;
+    sel = Math.max(0, Math.min(prev, rows.length - 1));
     list.innerHTML = '';
     rows.forEach((r, i) => {
-      const node = el('div', { class: `cmd-item ${i === 0 ? 'sel' : ''}` },
+      const node = el('div', { class: `cmd-item ${i === sel ? 'sel' : ''}` },
         el('span', { class: 'ic' }, r.icon),
         el('span', {}, r.label),
         el('small', {}, r.hint));
@@ -508,21 +511,48 @@ export function bindCommandPalette() {
   $('#cmdBtn').addEventListener('click', open);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
-  input.addEventListener('input', async () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) return render(COMMANDS);
+  // One in-flight search at a time, and only the newest reply is allowed to paint:
+  // typing fast otherwise lets a slow early request overwrite a fresh later one.
+  let seq = 0;
+  let timer = null;
+
+  const searchArticles = (raw) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      const res = await api(`/api/news/search?q=${encodeURIComponent(raw)}&limit=6`, { quiet: true })
+        .catch(() => null);
+      if (!res?.items?.length || mine !== seq || overlay.hidden) return;
+      if (input.value.trim() !== raw) return;   // the query moved on while we waited
+      render([...baseRows(raw), ...res.items.map((a) => ({
+        icon: a.flag || '▪',
+        label: a.title,
+        hint: `${a.source} · ${a.relative}`,
+        run: () => window.open(a.link, '_blank', 'noopener'),
+      }))], true);
+    }, 220);
+  };
+
+  const baseRows = (raw) => {
+    const q = raw.toLowerCase();
     const local = COMMANDS.filter((c) => c.label.toLowerCase().includes(q) || c.hint.includes(q));
-    const rows = [...local, {
-      icon: '⌕', label: `"${input.value.trim()}" 뉴스 검색`, hint: 'search',
-      run: () => (location.hash = `#/news?q=${encodeURIComponent(input.value.trim())}`),
+    return [...local, {
+      icon: '⌕', label: `"${raw}" 뉴스 검색`, hint: 'search',
+      run: () => (location.hash = `#/news?q=${encodeURIComponent(raw)}`),
     }, {
-      icon: '◭', label: `"${input.value.trim()}" 프리즘 분석`, hint: 'prism',
-      run: () => (location.hash = `#/prism?q=${encodeURIComponent(input.value.trim())}`),
+      icon: '◭', label: `"${raw}" 프리즘 분석`, hint: 'prism',
+      run: () => (location.hash = `#/prism?q=${encodeURIComponent(raw)}`),
     }, {
-      icon: '◫', label: `"${input.value.trim()}" 최저가 검색`, hint: 'shop',
-      run: () => (location.hash = `#/shop?q=${encodeURIComponent(input.value.trim())}`),
+      icon: '◫', label: `"${raw}" 최저가 검색`, hint: 'shop',
+      run: () => (location.hash = `#/shop?q=${encodeURIComponent(raw)}`),
     }];
-    render(rows);
+  };
+
+  input.addEventListener('input', () => {
+    const raw = input.value.trim();
+    if (!raw) { clearTimeout(timer); seq++; return render(COMMANDS); }
+    render(baseRows(raw));   // paint the actions instantly, fold hits in when they land
+    searchArticles(raw);
   });
 
   input.addEventListener('keydown', (e) => {

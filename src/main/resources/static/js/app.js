@@ -177,6 +177,9 @@ async function loadFooterMeta() {
     parts.push(meta.claude.live ? `Claude ${meta.claude.engine}${via}` : '로컬 엔진');
     parts.push(meta.shopping.live ? '쇼핑 실가격 ON' : '쇼핑 딥링크 모드');
     if (meta.crawler?.cachedArticles) parts.push(`캐시 ${meta.crawler.cachedArticles}건`);
+    if (meta.crawler?.feeds) $('#footFeeds').textContent = meta.crawler.feeds;
+    // the CLI tier is the one with a real ceiling - say so when it starts refusing work
+    if (meta.claude?.usage?.rejected) parts.push(`CLI 대기 반려 ${meta.claude.usage.rejected}건`);
     $('#footMeta').textContent = `· ${parts.join(' · ')}`;
   } catch { /* footer meta is cosmetic */ }
 }

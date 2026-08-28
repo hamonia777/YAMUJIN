@@ -183,12 +183,12 @@ export async function viewDashboard(root) {
     el('section', { class: 'hero' },
       el('div', { class: 'kicker' },
         el('span', { class: `dot ${claudeLive ? '' : 'off'}` }),
-        claudeLive ? `CLAUDE 연동됨 · ${meta.claude.engine}` : 'LOCAL ENGINE · ANTHROPIC_API_KEY 미설정'),
+        claudeLive ? `CLAUDE 연동됨 · ${meta.claude.engine}` : 'LOCAL ENGINE · Claude 자격증명 없음'),
       el('h1', {},
         '세상은 오늘도 ', el('span', { class: 'grad' }, '시끄럽다'), el('br'),
         '대신 읽어드립니다'),
       el('p', { class: 'lede' },
-        '대한민국·미국·유럽·일본·중국·세계 6개 권역, 34개 언론사 피드를 실시간으로 긁어와 중복을 제거하고, ' +
+        `대한민국·미국·유럽·일본·중국·세계 6개 권역, ${meta.crawler?.feeds ?? '수십'}개 언론사 피드를 실시간으로 긁어와 중복을 제거하고, ` +
         'Claude가 하나의 브리핑으로 종합합니다. 같은 사건을 각국이 어떻게 다르게 쓰는지까지 비교합니다.'),
       el('div', { class: 'hero-actions' },
         el('button', { class: 'btn primary', onclick: () => document.getElementById('briefing')?.scrollIntoView({ behavior: 'smooth' }) }, '오늘의 브리핑 읽기'),
@@ -272,7 +272,7 @@ export async function viewDashboard(root) {
     mapCard.innerHTML = '';
     mapCard.append(el('div', { class: 'empty' },
       el('div', { class: 'big' }, '📡'),
-      el('div', {}, '34개 피드를 처음 수집하는 중입니다… 10초쯤 걸립니다')));
+      el('div', {}, '전 권역 피드를 처음 수집하는 중입니다… 10초쯤 걸립니다')));
     await new Promise((r) => setTimeout(r, 3500));
   }
 
