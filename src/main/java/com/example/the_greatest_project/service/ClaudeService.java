@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -77,6 +78,11 @@ public class ClaudeService {
     public String credentialSource() {
         live();
         return credentialSource;
+    }
+
+    /** What the CLI tier has cost so far, or null when some other tier is answering. */
+    public Map<String, Object> cliUsage() {
+        return mode == Mode.CLI ? cli.usage() : null;
     }
 
     public String engineName() {

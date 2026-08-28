@@ -136,13 +136,16 @@ public class SideController {
         m.put("tagline", "전세계 뉴스를 긁어와 하나로 읽는 개인 인텔리전스 데스크");
         m.put("serverTime", ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toString());
         m.put("uptimeSince", START);
-        m.put("claude", Map.of(
-                "live", claude.live(),
-                "engine", claude.engineName(),
-                "source", claude.credentialSource(),
-                "hint", claude.live()
-                        ? "Claude 연동됨 · " + claude.credentialSource()
-                        : "자격증명 없음 - 로컬 엔진 동작 중 (claude 로그인, ant auth login, 또는 ANTHROPIC_API_KEY)"));
+        // LinkedHashMap, not Map.of: the CLI usage block is null on the SDK and local tiers.
+        Map<String, Object> claudeMeta = new LinkedHashMap<>();
+        claudeMeta.put("live", claude.live());
+        claudeMeta.put("engine", claude.engineName());
+        claudeMeta.put("source", claude.credentialSource());
+        claudeMeta.put("hint", claude.live()
+                ? "Claude 연동됨 · " + claude.credentialSource()
+                : "자격증명 없음 - 로컬 엔진 동작 중 (claude 로그인, ant auth login, 또는 ANTHROPIC_API_KEY)");
+        claudeMeta.put("usage", claude.cliUsage());
+        m.put("claude", claudeMeta);
         m.put("shopping", Map.of(
                 "live", products.liveShopping(),
                 "hint", products.liveShopping() ? "네이버 쇼핑 API 연동됨"

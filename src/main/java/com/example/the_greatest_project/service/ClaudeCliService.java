@@ -15,9 +15,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -44,6 +50,13 @@ import java.util.function.Consumer;
  * <p>The prompt goes in over stdin, not argv: Windows caps a command line near 32k characters and
  * a day's news digest blows straight through that. Both pipes are pinned to UTF-8 - the console
  * code page would otherwise mangle Korean.
+ *
+ * <p><b>Concurrency is capped on purpose.</b> Unlike an HTTP client, every call here forks a whole
+ * Node process, and each one draws on the same subscription rate-limit window. One dashboard load
+ * can ask for a briefing, a politics read and a Trump digest at once, so without a gate a single
+ * page view would spawn three interpreters. Calls past the cap wait briefly and then give up
+ * rather than queue without bound - the caller has a local fallback, and a slow correct answer
+ * beats a pile-up. {@link #usage()} reports what actually happened so the cost is visible.
  */
 @Service
 public class ClaudeCliService {
@@ -53,16 +66,31 @@ public class ClaudeCliService {
     /** Long enough for an Opus answer on a big digest, short enough that a wedged process dies. */
     private static final Duration CALL_TIMEOUT = Duration.ofMinutes(4);
     private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(60);
+    /** How long a call waits for a slot before falling back to the local engine. */
+    private static final Duration GATE_WAIT = Duration.ofSeconds(75);
 
     private final ObjectMapper json = new ObjectMapper();
     private final String configuredPath;
+    private final Semaphore gate;
+    private final int maxConcurrent;
 
     private volatile String exe;
     private volatile boolean exeResolved = false;
     private volatile Path workDir;
 
-    public ClaudeCliService(@Value("${mujin.claude.cli-path:}") String configuredPath) {
+    private final AtomicInteger inFlight = new AtomicInteger();
+    private final AtomicLong calls = new AtomicLong();
+    private final AtomicLong failures = new AtomicLong();
+    private final AtomicLong rejected = new AtomicLong();
+    private final AtomicLong totalMillis = new AtomicLong();
+    private volatile Instant lastCallAt;
+    private volatile String lastError;
+
+    public ClaudeCliService(@Value("${mujin.claude.cli-path:}") String configuredPath,
+                            @Value("${mujin.claude.cli-concurrency:2}") int maxConcurrent) {
         this.configuredPath = configuredPath == null ? "" : configuredPath.trim();
+        this.maxConcurrent = Math.max(1, maxConcurrent);
+        this.gate = new Semaphore(this.maxConcurrent);
     }
 
     /** True when a {@code claude} binary is on disk. Says nothing about whether it is logged in. */
@@ -74,6 +102,21 @@ public class ClaudeCliService {
         return exe();
     }
 
+    /** What the CLI tier has cost so far this run - surfaced in /api/meta. */
+    public Map<String, Object> usage() {
+        long n = calls.get();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("calls", n);
+        m.put("failures", failures.get());
+        m.put("rejected", rejected.get());
+        m.put("inFlight", inFlight.get());
+        m.put("maxConcurrent", maxConcurrent);
+        m.put("avgSeconds", n == 0 ? null : Math.round(totalMillis.get() / (double) n) / 1000.0);
+        m.put("lastCallAt", lastCallAt == null ? null : lastCallAt.toString());
+        m.put("lastError", lastError);
+        return m;
+    }
+
     /**
      * A real one-token round trip. There is no free "am I authenticated" call for the CLI the way
      * the Models API is for the SDK, so we pay for the cheapest possible answer rather than guess
@@ -81,42 +124,51 @@ public class ClaudeCliService {
      */
     public boolean probe(String model) {
         if (exe() == null) return false;
+        if (!acquire("probe")) return false;
+        long t0 = System.currentTimeMillis();
         try {
             Result r = run(args(model, "너는 계산기다.", "json", false), "1+1은? 숫자만.", PROBE_TIMEOUT);
             if (!r.ok()) {
-                log.info("Claude CLI 인증 확인 실패 (exit={}): {}", r.exit, trim(r.stderr));
+                fail("인증 확인 실패 (exit=" + r.exit + ") " + trim(r.stderr));
                 return false;
             }
             JsonNode node = json.readTree(r.stdout);
             boolean success = "success".equals(node.path("subtype").asText())
                     && !node.path("is_error").asBoolean(false);
-            if (!success) log.info("Claude CLI 응답이 성공이 아닙니다: {}", trim(r.stdout));
+            if (!success) fail("응답이 성공이 아님: " + trim(r.stdout));
             return success;
         } catch (Exception e) {
-            log.info("Claude CLI 프로브 실패: {}", e.toString());
+            fail("프로브 예외: " + e);
             return false;
+        } finally {
+            done(t0);
         }
     }
 
     /** One-shot completion. Returns null when the CLI could not answer, so the caller can fall back. */
     public String ask(String model, String system, String user) {
         if (exe() == null) return null;
+        if (!acquire("ask")) return null;
+        long t0 = System.currentTimeMillis();
         try {
             Result r = run(args(model, system, "json", false), user, CALL_TIMEOUT);
             if (!r.ok()) {
-                log.warn("Claude CLI 호출 실패 (exit={}): {}", r.exit, trim(r.stderr));
+                fail("호출 실패 (exit=" + r.exit + ") " + trim(r.stderr));
                 return null;
             }
             JsonNode node = json.readTree(r.stdout);
             if (node.path("is_error").asBoolean(false)) {
-                log.warn("Claude CLI 오류 응답: {}", trim(r.stdout));
+                fail("오류 응답: " + trim(r.stdout));
                 return null;
             }
             String out = node.path("result").asText("").trim();
+            if (out.isEmpty()) fail("빈 응답");
             return out.isEmpty() ? null : out;
         } catch (Exception e) {
-            log.warn("Claude CLI 호출 예외: {}", e.toString());
+            fail("호출 예외: " + e);
             return null;
+        } finally {
+            done(t0);
         }
     }
 
@@ -126,8 +178,9 @@ public class ClaudeCliService {
      * @return true if the stream produced any text; false means the caller should use its fallback.
      */
     public boolean stream(String model, String system, String user, Consumer<String> onDelta) {
-        String bin = exe();
-        if (bin == null) return false;
+        if (exe() == null) return false;
+        if (!acquire("stream")) return false;
+        long t0 = System.currentTimeMillis();
 
         Process p = null;
         boolean any = false;
@@ -148,12 +201,44 @@ public class ClaudeCliService {
                 }
             }
             if (!p.waitFor(CALL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) p.destroyForcibly();
+            if (!any) fail("스트림에 텍스트가 없었음");
         } catch (Exception e) {
-            log.warn("Claude CLI 스트리밍 실패: {}", e.toString());
+            fail("스트리밍 실패: " + e);
         } finally {
             if (p != null && p.isAlive()) p.destroyForcibly();
+            done(t0);
         }
         return any;
+    }
+
+    // ---------------------------------------------------------------- gate + metrics
+
+    private boolean acquire(String what) {
+        try {
+            if (gate.tryAcquire(GATE_WAIT.toMillis(), TimeUnit.MILLISECONDS)) {
+                inFlight.incrementAndGet();
+                return true;
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+        rejected.incrementAndGet();
+        log.info("Claude CLI 동시 실행 한도({}) 도달 - {} 요청은 로컬 엔진으로 넘깁니다", maxConcurrent, what);
+        return false;
+    }
+
+    private void done(long startedAtMillis) {
+        inFlight.decrementAndGet();
+        gate.release();
+        calls.incrementAndGet();
+        totalMillis.addAndGet(System.currentTimeMillis() - startedAtMillis);
+        lastCallAt = Instant.now();
+    }
+
+    private void fail(String message) {
+        failures.incrementAndGet();
+        lastError = message;
+        log.warn("Claude CLI {}", message);
     }
 
     /** Pulls the text out of one stream-json line, or null if the line is not a text delta. */
@@ -262,7 +347,7 @@ public class ClaudeCliService {
             exeResolved = true;
             exe = locate();
             if (exe == null) log.info("claude CLI를 찾지 못했습니다 - CLI 경유 호출은 비활성화됩니다.");
-            else log.info("claude CLI 발견: {}", exe);
+            else log.info("claude CLI 발견: {} (동시 실행 최대 {})", exe, maxConcurrent);
             return exe;
         }
     }
