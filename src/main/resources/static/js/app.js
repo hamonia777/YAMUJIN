@@ -39,13 +39,12 @@ function parseHash() {
 }
 
 let currentPath = null;
-let rendering = false;
-let pending = false;
+// Every render gets a number. Only the newest one is allowed to finish the job -
+// touch the progress bar, wire reveals, or report an error.
+let renderToken = 0;
 
 async function render() {
-  // a click that lands mid-render must not be swallowed - remember it and replay once free
-  if (rendering) { pending = true; return; }
-  rendering = true;
+  const token = ++renderToken;
 
   const { path, params } = parseHash();
   const route = ROUTES[path] || ROUTES['/'];
@@ -57,50 +56,60 @@ async function render() {
   const same = currentPath === path;
   currentPath = path;
 
-  const paint = async () => {
-    view.innerHTML = '';
+  // Each render draws into its own container. A navigation that lands mid-render
+  // detaches this one, so a slow screen's late writes go somewhere invisible instead
+  // of spraying cards into whatever the user opened next. Claude-backed views can
+  // take twenty seconds; queueing them behind each other made the nav feel dead.
+  const swap = () => {
+    const canvas = el('div', { class: 'view-canvas' });
+    view.replaceChildren(canvas);
     view.scrollTop = 0;
     if (!same) window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+    return canvas;
+  };
+
+  const fill = async (canvas) => {
     progress('start');
     try {
-      await route.render(view, params);
+      await route.render(canvas, params);
     } catch (err) {
+      if (token !== renderToken) return;
       console.error(err);
-      view.append(el('div', { class: 'empty' },
+      canvas.append(el('div', { class: 'empty' },
         el('div', { class: 'big' }, '⚠'),
         el('h2', {}, '이 화면을 그리지 못했습니다'),
         el('p', {}, err.message || String(err)),
         el('button', { class: 'btn primary', style: { marginTop: '14px' }, onclick: () => render() }, '다시 시도')));
     } finally {
-      progress('done');
-      observeReveals(view);
-      bindSheen(view);
-      rendering = false;
-      if (pending) { pending = false; render(); }
+      if (token === renderToken) {
+        progress('done');
+        observeReveals(canvas);
+        bindSheen(canvas);
+      }
     }
   };
 
-  if (!same) warpFlash();
+  // Hand-rolled zoom rather than the View Transitions API. Two reasons, both measured:
+  // startViewTransition kept throwing InvalidStateError here (it refuses while the document
+  // is hidden or another transition is live), and it holds its update callback - so the old
+  // shape, which awaited the whole render inside it, stalled the animation on screens that
+  // wait seconds on Claude. Same keyframes either way; what is lost is the simultaneous
+  // cross-fade of the two snapshots, which this trades for out-then-in.
+  if (same) {
+    await fill(swap());
+    return;
+  }
 
-  // View Transitions where supported, hand-rolled fallback elsewhere.
-  // startViewTransition throws InvalidStateError if the document is hidden or one is already running.
-  if (document.startViewTransition && !same) {
-    try {
-      const vt = document.startViewTransition(() => paint());
-      vt.finished?.catch(() => {});
-      return;
-    } catch {
-      // fall through to the manual animation
-    }
-  }
-  {
-    view.classList.add('leaving');
-    await new Promise((r) => setTimeout(r, same ? 0 : 210));
-    view.classList.remove('leaving');
-    view.classList.add('entering');
-    await paint();
-    setTimeout(() => view.classList.remove('entering'), 620);
-  }
+  warpFlash();
+  view.classList.add('leaving');
+  await new Promise((r) => setTimeout(r, 210));
+  view.classList.remove('leaving');
+
+  const canvas = swap();
+  view.classList.add('entering');
+  setTimeout(() => view.classList.remove('entering'), 620);
+
+  await fill(canvas);
 }
 
 /** A short radial sweep behind the zoom, so the cut reads as intentional. */
