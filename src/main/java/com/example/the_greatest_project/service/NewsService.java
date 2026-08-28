@@ -46,7 +46,7 @@ public class NewsService {
     private final AtomicLong sweepCount = new AtomicLong();
     private volatile Instant lastSweep;
 
-    public NewsService(Http http, @Value("${yamujin.news.cache-minutes:8}") int cacheMinutes) {
+    public NewsService(Http http, @Value("${mujin.news.cache-minutes:8}") int cacheMinutes) {
         this.http = http;
         this.cacheTtl = Duration.ofMinutes(cacheMinutes);
     }

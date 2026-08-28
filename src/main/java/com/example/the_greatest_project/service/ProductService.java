@@ -47,8 +47,8 @@ public class ProductService {
     private final Map<String, Instant> cachedAt = new ConcurrentHashMap<>();
 
     public ProductService(Http http, ClaudeService claude, NewsService news,
-                          @Value("${yamujin.naver.client-id:}") String naverId,
-                          @Value("${yamujin.naver.client-secret:}") String naverSecret) {
+                          @Value("${mujin.naver.client-id:}") String naverId,
+                          @Value("${mujin.naver.client-secret:}") String naverSecret) {
         this.http = http;
         this.claude = claude;
         this.news = news;

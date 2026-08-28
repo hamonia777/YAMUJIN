@@ -1,5 +1,5 @@
 /* ============================================================
-   YAMUJIN · main views
+   MUJIN · main views
    ============================================================ */
 
 import { marketStrip, trumpCard } from './market.js';
@@ -309,7 +309,7 @@ export async function viewDashboard(root) {
     mapCard.append(el('div', { class: 'empty' },
       el('div', { class: 'big' }, '📡'),
       el('div', {}, '아직 수집된 기사가 없습니다.'),
-      el('button', { class: 'btn primary', style: { marginTop: '14px' }, onclick: () => window.YAMUJIN.refresh() },
+      el('button', { class: 'btn primary', style: { marginTop: '14px' }, onclick: () => window.MUJIN.refresh() },
         '지금 크롤링하기')));
   }
 

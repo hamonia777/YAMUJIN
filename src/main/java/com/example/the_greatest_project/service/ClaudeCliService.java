@@ -61,7 +61,7 @@ public class ClaudeCliService {
     private volatile boolean exeResolved = false;
     private volatile Path workDir;
 
-    public ClaudeCliService(@Value("${yamujin.claude.cli-path:}") String configuredPath) {
+    public ClaudeCliService(@Value("${mujin.claude.cli-path:}") String configuredPath) {
         this.configuredPath = configuredPath == null ? "" : configuredPath.trim();
     }
 
@@ -240,7 +240,7 @@ public class ClaudeCliService {
         synchronized (this) {
             if (workDir != null) return workDir;
             try {
-                Path dir = Path.of(System.getProperty("java.io.tmpdir"), "yamujin-cli");
+                Path dir = Path.of(System.getProperty("java.io.tmpdir"), "mujin-cli");
                 Files.createDirectories(dir);
                 workDir = dir;
             } catch (Exception e) {

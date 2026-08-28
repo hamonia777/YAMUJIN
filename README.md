@@ -1,4 +1,4 @@
-# YAMUJIN · 글로벌 인텔리전스 허브
+# MUJIN · 글로벌 인텔리전스 허브
 
 전세계 뉴스를 실시간으로 크롤링해서 Claude가 하나로 종합해주는 개인용 데스크.
 대한민국 정세 지표, 최저가 헌터, 지식 그래프, JWT 회원 시스템, 독립 실행 랩 페이지까지 한 서버에 들어 있습니다.
@@ -59,7 +59,7 @@ CLI 호출은 순수 완성 엔드포인트처럼 동작하도록 잠가 두었�
 |---|---|---|
 | `ANTHROPIC_API_KEY` | 없음 | 있으면 1순위로 사용 |
 | `CLAUDE_MODEL` | `claude-sonnet-5` | 원하는 모델로 교체 |
-| `YAMUJIN_CLAUDE_USE_CLI` | `true` | `false` 면 CLI 경로를 끄고 로컬 엔진으로 내려감 |
+| `MUJIN_CLAUDE_USE_CLI` | `true` | `false` 면 CLI 경로를 끄고 로컬 엔진으로 내려감 |
 | `CLAUDE_CLI_PATH` | 자동 탐색 | PATH·`~/.local/bin` 밖에 있을 때만 지정 |
 | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 없음 | 네이버 쇼핑 실가격 비교 + Claude 구매 판정 |
 | `JWT_SECRET` | 내장 개발용 키 | 운영용 서명 키 |
@@ -178,8 +178,8 @@ GET  /api/meta                         POST /api/news/refresh
 ## 인증
 
 BCrypt(10) 해싱 + HS256 JWT(기본 12시간). `JwtAuthFilter`가 `/api/*`에서 Bearer 토큰이나
-`yamujin_token` 쿠키를 읽어 요청에 신원을 심고, 보호된 엔드포인트는 `Auth.require()`로 401을 냅니다.
-계정과 스크랩은 `./data/yamujin.mv.db` (이 컴퓨터의 H2 파일)에만 저장됩니다.
+`mujin_token` 쿠키를 읽어 요청에 신원을 심고, 보호된 엔드포인트는 `Auth.require()`로 401을 냅니다.
+계정과 스크랩은 `./data/mujin.mv.db` (이 컴퓨터의 H2 파일)에만 저장됩니다.
 
 ---
 

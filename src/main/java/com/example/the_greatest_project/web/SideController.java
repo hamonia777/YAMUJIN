@@ -132,7 +132,7 @@ public class SideController {
     @GetMapping("/meta")
     public Map<String, Object> meta() {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("app", "YAMUJIN");
+        m.put("app", "MUJIN");
         m.put("tagline", "전세계 뉴스를 긁어와 하나로 읽는 개인 인텔리전스 데스크");
         m.put("serverTime", ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toString());
         m.put("uptimeSince", START);

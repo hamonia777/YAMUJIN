@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>터미널 뉴스 · YAMUJIN LAB</title>
+<title>터미널 뉴스 · MUJIN LAB</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💻</text></svg>">
 <style>
   html,body{height:100%;margin:0;background:#07100c;overflow:hidden}
@@ -61,7 +61,7 @@ async function run(){
 const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
 
 async function boot(){
-  push('<span class="dim">YAMUJIN NEWS TERMINAL v1.0 (c) 2026</span>', 4);
+  push('<span class="dim">MUJIN NEWS TERMINAL v1.0 (c) 2026</span>', 4);
   push('<span class="dim">initializing feed sockets...</span>', 4);
   push('<span class="dim">handshake: 6 regions / 34 sources</span>', 4);
   push('', 0);
@@ -78,7 +78,7 @@ async function boot(){
 async function cycle(){
   const res = await fetch('/api/news?limit=40').then(r => r.json()).catch(() => null);
   const items = res?.items || [];
-  push('<span class="dim">$ yamujin --tail --all-regions</span>', 16);
+  push('<span class="dim">$ mujin --tail --all-regions</span>', 16);
   push('', 0);
 
   for (const a of items){

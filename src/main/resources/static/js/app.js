@@ -1,5 +1,5 @@
 /* ============================================================
-   YAMUJIN · router + bootstrap
+   MUJIN · router + bootstrap
    ============================================================ */
 
 import {
@@ -14,7 +14,6 @@ import {
 
 import { viewFun, viewGames, viewLabs } from './fun.js';
 import { viewMarket } from './market.js';
-import { runIntro } from './intro.js';
 
 /* ------------------------------------------------------------ routes */
 
@@ -51,7 +50,7 @@ async function render() {
   const { path, params } = parseHash();
   const route = ROUTES[path] || ROUTES['/'];
 
-  document.title = path === '/' ? 'YAMUJIN · 글로벌 인텔리전스 허브' : `${route.title} · YAMUJIN`;
+  document.title = path === '/' ? 'MUJIN · 글로벌 인텔리전스 허브' : `${route.title} · MUJIN`;
   markActiveNav(path);
 
   const view = $('#view');
@@ -195,13 +194,10 @@ async function loadFooterMeta() {
   bindAuthForm(() => render());
   renderAuthSlot();
 
-  // The intro is tied to real work: it ends when the first sweep has actually
-  // landed, not on a timer pretending to be one.
-  const firstData = Promise.allSettled([
-    loadMe(),
-    api('/api/news/pulse', { quiet: true }),
-  ]);
-  await runIntro(firstData);
+  // Warm the first sweep and the session in parallel, then paint immediately.
+  // Nothing is gated behind an animation - the dashboard is the landing screen.
+  api('/api/news/pulse', { quiet: true }).catch(() => {});
+  await loadMe();
 
   render();
   loadTicker();
@@ -211,7 +207,7 @@ async function loadFooterMeta() {
   setInterval(loadTicker, 5 * 60 * 1000);
   setInterval(loadFooterMeta, 5 * 60 * 1000);
 
-  window.YAMUJIN = { render, refresh, api, auth };
-  console.log('%cYAMUJIN', 'font:700 22px Space Grotesk;background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);-webkit-background-clip:text;color:transparent',
+  window.MUJIN = { render, refresh, api, auth };
+  console.log('%cMUJIN', 'font:700 22px Space Grotesk;background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff5ea8);-webkit-background-clip:text;color:transparent',
     '\nCtrl+K 명령 팔레트 · Alt+A AI 비서 · Ctrl+Alt+B 사장님 모드');
 })();

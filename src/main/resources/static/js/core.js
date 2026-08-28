@@ -1,5 +1,5 @@
 /* ============================================================
-   YAMUJIN · core runtime
+   MUJIN · core runtime
    dom helpers, api client, markdown, auth, chrome, animations
    ============================================================ */
 
@@ -58,7 +58,7 @@ export function toast(message, kind = '') {
 
 /* ------------------------------------------------------------ auth store */
 
-const TOKEN_KEY = 'yamujin.token';
+const TOKEN_KEY = 'mujin.token';
 export const auth = {
   get token() { return localStorage.getItem(TOKEN_KEY) || ''; },
   set token(v) { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); },
@@ -467,7 +467,7 @@ const COMMANDS = [
   { icon: '⌬', label: '독립 랩 페이지',  hint: '#/labs',   run: () => (location.hash = '#/labs') },
   { icon: '☻', label: '재미 / 미니게임', hint: '#/fun',    run: () => (location.hash = '#/fun') },
   { icon: '☺', label: '마이페이지',      hint: '#/me',     run: () => (location.hash = '#/me') },
-  { icon: '↻', label: '지금 다시 크롤링', hint: 'refresh',  run: () => window.YAMUJIN.refresh() },
+  { icon: '↻', label: '지금 다시 크롤링', hint: 'refresh',  run: () => window.MUJIN.refresh() },
   { icon: '◐', label: '라이트/다크 전환', hint: 'theme',    run: () => toggleTheme() },
   { icon: '⎋', label: '로그아웃',        hint: 'logout',   run: () => logout() },
 ];
@@ -550,12 +550,12 @@ export function toggleTheme() {
   const root = document.documentElement;
   const next = root.dataset.theme === 'light' ? 'dark' : 'light';
   root.dataset.theme = next;
-  localStorage.setItem('yamujin.theme', next);
+  localStorage.setItem('mujin.theme', next);
   toast(next === 'light' ? '라이트 모드' : '다크 모드');
 }
 
 export function initTheme() {
-  const saved = localStorage.getItem('yamujin.theme');
+  const saved = localStorage.getItem('mujin.theme');
   if (saved) document.documentElement.dataset.theme = saved;
 }
 
@@ -614,11 +614,11 @@ export function bindBossKey() {
       e.preventDefault();
       if (!built) build();
       boss.hidden = !boss.hidden;
-      document.title = boss.hidden ? 'YAMUJIN · 글로벌 인텔리전스 허브' : '2026_사업계획_최종_v7_진짜최종.xlsx - Excel';
+      document.title = boss.hidden ? 'MUJIN · 글로벌 인텔리전스 허브' : '2026_사업계획_최종_v7_진짜최종.xlsx - Excel';
     }
     if (e.key === 'Escape' && !boss.hidden) {
       boss.hidden = true;
-      document.title = 'YAMUJIN · 글로벌 인텔리전스 허브';
+      document.title = 'MUJIN · 글로벌 인텔리전스 허브';
     }
   });
 }

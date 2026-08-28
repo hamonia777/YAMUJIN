@@ -59,9 +59,9 @@ public class ClaudeService {
     private volatile Instant probedAt = Instant.EPOCH;
     private volatile String credentialSource = "none";
 
-    public ClaudeService(@Value("${yamujin.claude.api-key:}") String apiKey,
-                         @Value("${yamujin.claude.model:claude-opus-5}") String model,
-                         @Value("${yamujin.claude.use-cli:true}") boolean cliEnabled,
+    public ClaudeService(@Value("${mujin.claude.api-key:}") String apiKey,
+                         @Value("${mujin.claude.model:claude-opus-5}") String model,
+                         @Value("${mujin.claude.use-cli:true}") boolean cliEnabled,
                          ClaudeCliService cli) {
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = (model == null || model.isBlank()) ? "claude-opus-5" : model.trim();

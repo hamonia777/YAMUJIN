@@ -1,5 +1,5 @@
 /* ============================================================
-   YAMUJIN · 마켓 & TRUMP WATCH
+   MUJIN · 마켓 & TRUMP WATCH
    single-series charts: the number carries the value, the line carries the shape.
    direction is never color-alone - every change ships with an arrow and a sign.
    ============================================================ */

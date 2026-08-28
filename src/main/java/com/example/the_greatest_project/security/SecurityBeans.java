@@ -25,7 +25,7 @@ public class SecurityBeans {
     }
 
     @Bean
-    public WebMvcConfigurer yamujinCors() {
+    public WebMvcConfigurer mujinCors() {
         return new WebMvcConfigurer() {
             @Override public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")

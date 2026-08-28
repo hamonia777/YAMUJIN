@@ -10,13 +10,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/** Reads the Bearer token (or yamujin_token cookie) and stashes the identity on the request. */
+/** Reads the Bearer token (or mujin_token cookie) and stashes the identity on the request. */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    public static final String ATTR_UID = "yamujin.uid";
-    public static final String ATTR_EMAIL = "yamujin.email";
-    public static final String ATTR_NICK = "yamujin.nick";
+    public static final String ATTR_UID = "mujin.uid";
+    public static final String ATTR_EMAIL = "mujin.email";
+    public static final String ATTR_NICK = "mujin.nick";
 
     private final JwtService jwt;
 
@@ -32,7 +32,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
         if (token == null && req.getCookies() != null) {
             for (var c : req.getCookies()) {
-                if ("yamujin_token".equals(c.getName())) { token = c.getValue(); break; }
+                if ("mujin_token".equals(c.getName())) { token = c.getValue(); break; }
             }
         }
         if (token != null && !token.isBlank() && !"null".equals(token)) {

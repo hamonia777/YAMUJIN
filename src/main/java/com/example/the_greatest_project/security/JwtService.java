@@ -18,8 +18,8 @@ public class JwtService {
     private final SecretKey key;
     private final long ttlMinutes;
 
-    public JwtService(@Value("${yamujin.jwt.secret}") String secret,
-                      @Value("${yamujin.jwt.ttl-minutes:720}") long ttlMinutes) {
+    public JwtService(@Value("${mujin.jwt.secret}") String secret,
+                      @Value("${mujin.jwt.ttl-minutes:720}") long ttlMinutes) {
         byte[] raw = secret.getBytes(StandardCharsets.UTF_8);
         if (raw.length < 32) {
             byte[] padded = new byte[32];
@@ -40,7 +40,7 @@ public class JwtService {
                 .claims(Map.of("email", email, "nick", nickname, "role", role))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(ttlSeconds())))
-                .issuer("yamujin")
+                .issuer("mujin")
                 .signWith(key)
                 .compact();
     }

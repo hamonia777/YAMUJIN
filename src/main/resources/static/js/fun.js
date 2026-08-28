@@ -1,5 +1,5 @@
 /* ============================================================
-   YAMUJIN · 재미 / 미니게임 / 랩
+   MUJIN · 재미 / 미니게임 / 랩
    전부 명시적 클릭으로만 실행됩니다. 메인 흐름에는 절대 끼어들지 않습니다.
    ============================================================ */
 
@@ -191,7 +191,7 @@ function cardTone() {
 /* ---------------- 월급 카운터 ---------------- */
 
 function cardSalary() {
-  const KEY = 'yamujin.salary';
+  const KEY = 'mujin.salary';
   const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
   const salaryInput = el('input', { type: 'number', value: saved.salary || 40000000, min: '0', step: '1000000' });
   const startInput = el('input', { type: 'time', value: saved.start || '09:00' });
@@ -377,7 +377,7 @@ export async function viewGames(root) {
 /* ---------------- 진짜 vs 가짜 ---------------- */
 
 function gameRealFake() {
-  const KEY = 'yamujin.realfake';
+  const KEY = 'mujin.realfake';
   let score = JSON.parse(localStorage.getItem(KEY) || '{"win":0,"lose":0}');
   const scoreLine = el('div', { class: 'filters' });
   const stage = el('div', { style: { minHeight: '200px' } });
@@ -438,7 +438,7 @@ function gameRealFake() {
 /* ---------------- 화제도 대결 ---------------- */
 
 function gameHeat() {
-  const KEY = 'yamujin.heatgame';
+  const KEY = 'mujin.heatgame';
   let best = Number(localStorage.getItem(KEY) || 0);
   let streak = 0;
   const info = el('div', { class: 'filters' });

@@ -29,7 +29,7 @@ public class BriefingService {
             DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm").withLocale(Locale.KOREAN);
 
     private static final String PERSONA = """
-            당신은 '야무진(YAMUJIN)' 글로벌 인텔리전스 데스크의 수석 애널리스트입니다.
+            당신은 '야무진(MUJIN)' 글로벌 인텔리전스 데스크의 수석 애널리스트입니다.
             한국어로, 군더더기 없이, 근거 중심으로 씁니다.
 
             규칙:
